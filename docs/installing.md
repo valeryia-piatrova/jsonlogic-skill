@@ -72,3 +72,25 @@ doesn't pick the skill up.
 
 After cloning, restart or reload the tool (or its skills panel, if it has
 one) — most don't pick up new folders until then.
+
+
+## Troubleshooting
+
+### Skill not detected after installation
+
+* Verify that the skill files are installed in the correct directory for your tool.
+* Confirm that the local folder is named `jsonlogic`, matching the name in `SKILL.md`.
+* Restart or reload the agent tool after installation.
+
+### Incorrect folder name
+
+The local skill folder should be named `jsonlogic`. If it has a different name, rename the folder or clone the repository again using the expected path.
+
+### Repository cloned into the wrong directory
+
+Check the installation path for your specific tool in the sections above. If the repository is in the wrong location, move it to the correct directory or clone it again at the documented path.
+
+### Still having problems?
+
+Review the installation instructions and your agent tool's documentation. You can also check the project's open issues for similar problems.
+
