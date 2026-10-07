@@ -109,6 +109,16 @@
     display:none;
   }
   .code:focus-within .cur{display:block;}
+  .errline{
+    position:absolute;
+    left:0;
+    right:0;
+    top:calc(14px + var(--el) * 1.5em);
+    height:1.5em;
+    background:color-mix(in srgb,var(--bad) 16%,transparent);
+    display:none;
+  }
+  .code.has-err .errline{display:block;}
   .pane textarea::selection{background:color-mix(in srgb,var(--key) 30%,transparent);}
   .p{color:var(--punct);}
   .o{color:var(--op);}
@@ -120,14 +130,18 @@
 </style>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400&display=swap">
 
-<div class="pane code" style="grid-area:rule"><div class="cur"></div><pre class="gutter" aria-hidden="true"></pre><pre class="hl" aria-hidden="true"></pre><textarea id="rule" wrap="off" spellcheck="false" aria-label="Rule"></textarea></div>
-<div class="pane code" style="grid-area:data"><div class="cur"></div><pre class="gutter" aria-hidden="true"></pre><pre class="hl" aria-hidden="true"></pre><textarea id="data" wrap="off" spellcheck="false" aria-label="Data"></textarea></div>
+<div class="pane code" style="grid-area:rule"><div class="cur"></div><div class="errline"></div><pre class="gutter" aria-hidden="true"></pre><pre class="hl" aria-hidden="true"></pre><textarea id="rule" wrap="off" spellcheck="false" aria-label="Rule"></textarea></div>
+<div class="pane code" style="grid-area:data"><div class="cur"></div><div class="errline"></div><pre class="gutter" aria-hidden="true"></pre><pre class="hl" aria-hidden="true"></pre><textarea id="data" wrap="off" spellcheck="false" aria-label="Data"></textarea></div>
 <div class="pane out" style="grid-area:result"><pre id="result" aria-label="Result" aria-live="polite"></pre></div>
 
 <script type="module">
-import { LogicEngine } from "https://cdn.jsdelivr.net/npm/json-logic-engine@5.0.7/dist/esm/index.js";
+// Loaded dynamically so the editors still render if the CDN is unreachable.
+let engine = null, engineError = "";
+import("https://cdn.jsdelivr.net/npm/json-logic-engine@5.0.7/dist/esm/index.js").then(
+  m => { engine = new m.LogicEngine(); render(); },
+  () => { engineError = "json-logic-engine failed to load from cdn.jsdelivr.net"; render(); }
+);
 
-const engine = new LogicEngine();
 const ruleEl = document.getElementById("rule");
 const dataEl = document.getElementById("data");
 const resultEl = document.getElementById("result");
@@ -156,21 +170,39 @@ function fit(pane){
   }
 }
 
-function gutter(ta){
-  const n = ta.value.split("\n").length;
-  ta.parentElement.querySelector(".gutter").textContent = Array.from({length:n}, (_, i) => i + 1).join("\n");
-  ta.parentElement.style.setProperty("--g", String(n).length);
+// Error line from JSON.parse's message: Chrome/Firefox give "line N", older engines
+// "position N"; Safari gives neither, so no line is marked there.
+function errLine(src, msg){
+  const line = msg.match(/line (\d+)/);
+  if(line) return +line[1] - 1;
+  const pos = msg.match(/position (\d+)/);
+  return pos ? src.slice(0, +pos[1]).split("\n").length - 1 : -1;
 }
+
+function gutter(ta, bad){
+  const n = ta.value.split("\n").length;
+  const pane = ta.parentElement;
+  pane.querySelector(".gutter").innerHTML = Array.from({length:n}, (_, i) => i === bad ? `<span class="err">${i + 1}</span>` : i + 1).join("\n");
+  pane.style.setProperty("--g", String(n).length);
+  pane.style.setProperty("--el", bad);
+  pane.classList.toggle("has-err", bad >= 0);
+}
+
+const parse = ta => { try{ return {value: JSON.parse(ta.value)}; }catch(error){ return {error}; } };
 const markLine = ta => ta.parentElement.style.setProperty("--ln", ta.value.slice(0, ta.selectionStart).split("\n").length - 1);
 
 function render(){
-  gutter(ruleEl);
-  gutter(dataEl);
+  const rule = parse(ruleEl), data = parse(dataEl);
+  gutter(ruleEl, rule.error ? errLine(ruleEl.value, rule.error.message) : -1);
+  gutter(dataEl, data.error ? errLine(dataEl.value, data.error.message) : -1);
   // In the rule every key is an operator; in the data it's a field name.
   ruleEl.previousElementSibling.innerHTML = highlight(ruleEl.value, "o");
   dataEl.previousElementSibling.innerHTML = highlight(dataEl.value, "k");
   try{
-    resultEl.innerHTML = highlight(JSON.stringify(engine.run(JSON.parse(ruleEl.value), JSON.parse(dataEl.value)), null, 2) ?? "", "k");
+    if(rule.error) throw rule.error;
+    if(data.error) throw data.error;
+    if(!engine) throw new Error(engineError);
+    resultEl.innerHTML = highlight(JSON.stringify(engine.run(rule.value, data.value), null, 2) ?? "", "k");
     resultEl.className = "";
   }catch(e){
     // The engine throws plain objects like {type:"Unknown Operator", key:"foo"}.
@@ -182,16 +214,34 @@ function render(){
 
 // __INITIAL_RULE__ / __INITIAL_DATA__ are replaced with JSON literals before publishing.
 // Left untouched, the reference throws and the built-in example is used instead.
-let rule, data;
-try{ rule = __INITIAL_RULE__; data = __INITIAL_DATA__; }
+let seedRule, seedData;
+try{ seedRule = __INITIAL_RULE__; seedData = __INITIAL_DATA__; }
 catch{
-  rule = {"if":[{"<":[{"var":"cart.total"},50]}, "no discount", {">=":[{"var":"cart.total"},200]}, "15% off", "5% off"]};
-  data = {cart:{total:120}};
+  seedRule = {"if":[{"<":[{"var":"cart.total"},50]}, "no discount", {">=":[{"var":"cart.total"},200]}, "15% off", "5% off"]};
+  seedData = {cart:{total:120}};
 }
-ruleEl.value = JSON.stringify(rule, null, 2);
-dataEl.value = JSON.stringify(data, null, 2);
+ruleEl.value = JSON.stringify(seedRule, null, 2);
+dataEl.value = JSON.stringify(seedData, null, 2);
+// Editor keys: Tab indents, Enter keeps the indent (one level deeper after { or [),
+// Esc leaves the field so Tab can move focus again. insertText keeps native undo.
+const insert = text => document.execCommand("insertText", false, text);
+function onKey(e){
+  const ta = e.target;
+  if(e.key === "Escape") return ta.blur();
+  if(e.key === "Tab" && !e.shiftKey && !e.altKey && !e.ctrlKey && !e.metaKey){
+    e.preventDefault();
+    insert("  ");
+  }else if(e.key === "Enter" && !e.isComposing){
+    const before = ta.value.slice(0, ta.selectionStart);
+    const indent = before.slice(before.lastIndexOf("\n") + 1).match(/^ */)[0];
+    e.preventDefault();
+    insert("\n" + indent + (/[{[]\s*$/.test(before) ? "  " : ""));
+  }
+}
+
 for(const ta of [ruleEl, dataEl]){
   ta.addEventListener("input", render);
+  ta.addEventListener("keydown", onKey);
   for(const ev of ["input", "keyup", "click", "focus"]) ta.addEventListener(ev, () => markLine(ta));
 }
 addEventListener("resize", () => panes.forEach(fit));
