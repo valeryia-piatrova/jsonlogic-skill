@@ -60,26 +60,6 @@
   }
   .result.ok{box-shadow:inset 0 0 0 1px var(--good);}
   .result.err{box-shadow:inset 0 0 0 1px var(--bad); color:var(--bad);}
-  .verify-btn{
-    display:none;
-    margin-top:10px;
-    font:600 13px/1 'Inter',sans-serif;
-    color:var(--accent);
-    background:none;
-    border:1px solid var(--accent);
-    border-radius:999px;
-    padding:7px 14px;
-    cursor:pointer;
-  }
-  .verify-btn.show{display:inline-block;}
-  .verify-btn:hover{background:var(--accent); color:#fff;}
-  .verify-note{
-    display:none;
-    margin:8px 0 0;
-    font-size:15px;
-    color:var(--ink-dim);
-  }
-  .verify-note.show{display:block;}
   details > summary{
     display:inline-flex;
     align-items:center;
@@ -118,8 +98,6 @@
   <div class="field">
     <h2>Rule</h2>
     <textarea id="rule" spellcheck="false" style="min-height:220px;"></textarea>
-    <button class="verify-btn" id="verifyBtn" type="button">Verify in chat →</button>
-    <p class="verify-note" id="verifyNote">For a 100% guaranteed match with the real library, verify in chat.</p>
   </div>
 
   <div class="field">
@@ -138,110 +116,33 @@
 <script type="module">
 import { LogicEngine } from "https://cdn.jsdelivr.net/npm/json-logic-engine@5.0.7/dist/esm/index.js";
 
-// Rules run on json-logic-engine; only truthiness is set here, to JsonLogic's own:
-// [] is falsy, any object (even {}) is truthy. Every library listed in the skill,
-// json-logic-rb included, follows these rules.
-var engine = new LogicEngine();
-engine.truthy = function(v){
-  return Array.isArray(v) ? v.length > 0 : (v !== null && typeof v === "object") ? true : !!v;
-};
+const engine = new LogicEngine();
+const ruleEl = document.getElementById("rule");
+const dataEl = document.getElementById("data");
+const resultEl = document.getElementById("result");
 
-function apply(rule, data){
-  try{ return engine.run(rule, data); }
-  catch(e){
+function evaluate(){
+  try{
+    resultEl.textContent = JSON.stringify(engine.run(JSON.parse(ruleEl.value), JSON.parse(dataEl.value)), null, 2);
+    resultEl.className = "result ok";
+  }catch(e){
     // The engine throws plain objects like {type:"Unknown Operator", key:"foo"}.
-    if(e instanceof Error) throw e;
-    throw new Error(e && e.type ? e.type + (e.key ? ": " + e.key : "") : String(e));
+    resultEl.textContent = e.message ?? JSON.stringify(e);
+    resultEl.className = "result err";
   }
 }
 
-(function(){
-  "use strict";
-
-  var DEFAULT_RULE = {"if":[{"<":[{"var":"cart.total"},50]}, "no discount", {">=":[{"var":"cart.total"},200]}, "15% off", "5% off"]};
-  var DEFAULT_DATA = {cart:{total:120}};
-
-  var ruleEl = document.getElementById("rule");
-  var dataEl = document.getElementById("data");
-  var resultEl = document.getElementById("result");
-
-  function evaluate(){
-    var rule, data;
-    try{ rule = JSON.parse(ruleEl.value); }
-    catch(e){ showError("Rule is not valid JSON: " + e.message); return; }
-    try{ data = JSON.parse(dataEl.value); }
-    catch(e){ showError("Data is not valid JSON: " + e.message); return; }
-    try{
-      var out = apply(rule, data);
-      resultEl.className = "result ok";
-      resultEl.textContent = JSON.stringify(out, null, 2);
-    }catch(e){
-      showError(e.message);
-    }
-  }
-
-  function showError(msg){
-    resultEl.className = "result err";
-    resultEl.textContent = msg;
-  }
-
-  // "Verify in chat": copies a ready-to-paste message with the CURRENT rule/data
-  // (whatever the user has typed, not just the initial seed) so Claude can run it
-  // through the real library for whichever language is in play, instead of this
-  // page's JS approximation. Only shown once the user has actually changed
-  // something away from the seed.
-  //
-  // Target library label: __VERIFY_LIB_LABEL__ names the real implementation to
-  // point at (e.g. "json-logic-js", "maykin-json-logic-py"). Left untouched, falls
-  // back to Ruby's json-logic-rb — the same default used elsewhere in this skill
-  // when no language/library was specified.
-  var VERIFY_LIB_LABEL;
-  try{ VERIFY_LIB_LABEL = __VERIFY_LIB_LABEL__; }
-  catch(e){ VERIFY_LIB_LABEL = "json-logic-rb (scripts/jsonlogic.rb)"; }
-
-  var verifyBtn = document.getElementById("verifyBtn");
-  var verifyNote = document.getElementById("verifyNote");
-  verifyNote.textContent = "For a 100% guaranteed match with " + VERIFY_LIB_LABEL + ", verify in chat.";
-  var verifyNoteDefault = verifyNote.textContent;
-  var seedRule, seedData;
-
-  function checkChanged(){
-    var changed = ruleEl.value !== seedRule || dataEl.value !== seedData;
-    verifyBtn.classList.toggle("show", changed);
-    verifyNote.classList.toggle("show", changed);
-  }
-
-  ruleEl.addEventListener("input", function(){ evaluate(); checkChanged(); });
-  dataEl.addEventListener("input", function(){ evaluate(); checkChanged(); });
-
-  verifyBtn.addEventListener("click", function(){
-    var msg = "Check this rule with the real " + VERIFY_LIB_LABEL + ", " +
-      "not the playground's approximation:\n\nRule:\n" + ruleEl.value +
-      "\n\nData:\n" + dataEl.value;
-    function done(ok){
-      verifyNote.textContent = ok
-        ? "Copied — paste into the chat with Claude."
-        : "Couldn't copy automatically — select the rule/data above and paste them into the chat yourself.";
-      setTimeout(function(){ verifyNote.textContent = verifyNoteDefault; }, 4000);
-    }
-    if(navigator.clipboard && navigator.clipboard.writeText){
-      navigator.clipboard.writeText(msg).then(function(){ done(true); }, function(){ done(false); });
-    }else{
-      done(false);
-    }
-  });
-
-  // Seed with the rule/data for the current task: __INITIAL_RULE__ / __INITIAL_DATA__
-  // are replaced with the real values (as JS/JSON literals) before this file is
-  // published as an artifact. Left untouched, the reference throws and this falls
-  // back to a built-in default, so the page never renders broken.
-  var INITIAL_RULE, INITIAL_DATA;
-  try{ INITIAL_RULE = __INITIAL_RULE__; INITIAL_DATA = __INITIAL_DATA__; }
-  catch(e){ INITIAL_RULE = DEFAULT_RULE; INITIAL_DATA = DEFAULT_DATA; }
-  ruleEl.value = JSON.stringify(INITIAL_RULE, null, 2);
-  dataEl.value = JSON.stringify(INITIAL_DATA, null, 2);
-  seedRule = ruleEl.value;
-  seedData = dataEl.value;
-  evaluate();
-})();
+// __INITIAL_RULE__ / __INITIAL_DATA__ are replaced with JSON literals before publishing.
+// Left untouched, the reference throws and the built-in example is used instead.
+let rule, data;
+try{ rule = __INITIAL_RULE__; data = __INITIAL_DATA__; }
+catch{
+  rule = {"if":[{"<":[{"var":"cart.total"},50]}, "no discount", {">=":[{"var":"cart.total"},200]}, "15% off", "5% off"]};
+  data = {cart:{total:120}};
+}
+ruleEl.value = JSON.stringify(rule, null, 2);
+dataEl.value = JSON.stringify(data, null, 2);
+ruleEl.addEventListener("input", evaluate);
+dataEl.addEventListener("input", evaluate);
+evaluate();
 </script>
