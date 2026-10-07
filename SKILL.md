@@ -41,11 +41,9 @@ account, so it works the same way for every installer with no sharing step neede
 artifact is private by default, and publishing here just updates the same URL, so
 there's no separate decision to check on each time.
 
-Two files, one static and one templated: [assets/jsonlogic-core.js](assets/jsonlogic-core.js)
-is the JsonLogic interpreter — it never changes between invocations, so publish it once
-per conversation (via the Artifact tool's `files` param) and never again.
-[assets/playground.html](assets/playground.html) is the thin page with the placeholders
-below; it's the only one that gets re-templated and republished on every change.
+[assets/playground.html](assets/playground.html) is a single self-contained page. It runs
+rules with [json-logic-engine](https://github.com/json-logic/json-logic-engine), loaded from
+jsDelivr, so there is no interpreter file to ship alongside it.
 
 1. Read `assets/playground.html`. It's a fixed-design page (rule, live result, data) —
    never hand-edit its CSS/layout; only the placeholders below change per invocation.
@@ -53,11 +51,7 @@ below; it's the only one that gets re-templated and republished on every change.
    a JS/JSON literal (the output of `JSON.stringify(...)`, valid to drop in as-is). No
    concrete rule yet → leave both untouched, the template falls back to a built-in
    default.
-3. Replace `__CURRENT_LANG_MODE__` with `"ruby"` when the target language is Ruby,
-   otherwise `"jsonlogic"` (every other language shown here follows JsonLogic's own
-   truthy/falsy rules; only Ruby's diverge). No language decided yet → leave it
-   untouched, falls back to `"jsonlogic"`.
-4. Replace `__VERIFY_LIB_LABEL__` with the same library **Running JsonLogic → Library**
+3. Replace `__VERIFY_LIB_LABEL__` with the same library **Running JsonLogic → Library**
    (above) resolved to for this task — this is what the page's "Verify in chat" button
    names when asking to confirm against the real implementation, so it must match, not
    default to Ruby just because that's this file's own fallback:
@@ -71,16 +65,12 @@ below; it's the only one that gets re-templated and republished on every change.
    - Any other language from [references/libraries.md](references/libraries.md) → that library's name as given there.
    No language/library decided yet → leave it untouched, falls back to Ruby's
    `"json-logic-rb (scripts/jsonlogic.rb)"`, matching this skill's own default.
-5. Write the result to a working file and publish it — the **first** time in a
+4. Write the result to a working file and publish it — the **first** time in a
    conversation: Artifact tool, `action:"publish"`, that file's path,
-   `title:"JSON Logic Playground"`, `icon:"code"`, plus
-   `files:{"jsonlogic-core.js":"assets/jsonlogic-core.js"}` so the interpreter ships
-   alongside it unmodified.
-6. Whenever the rule, data, or language changes later in the same conversation, redo
-   steps 1–4 with the new values and publish again with the **same file path** and the
-   same `url` — but omit `files` this time, since `jsonlogic-core.js` never changes and
-   an omitted file is kept as-is. This updates the same artifact in place instead of
-   creating a new one.
+   `title:"JSON Logic Playground"`, `icon:"code"`.
+5. Whenever the rule, data, or language changes later in the same conversation, redo
+   steps 1–3 with the new values and publish again with the **same file path**. This
+   updates the same artifact in place instead of creating a new one.
 
 Skip this for requests that never produce a concrete rule (e.g. "what does `missing`
 do").

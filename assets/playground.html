@@ -135,20 +135,28 @@
   <p class="hint">Rule and data are editable — the page recalculates live. This is the same playground that opens automatically each time the skill runs.</p>
 </div>
 
-<script src="jsonlogic-core.js"></script>
-<script>
+<script type="module">
+import { LogicEngine } from "https://cdn.jsdelivr.net/npm/json-logic-engine@5.0.7/dist/esm/index.js";
+
+// Rules run on json-logic-engine; only truthiness is set here, to JsonLogic's own:
+// [] is falsy, any object (even {}) is truthy. Every library listed in the skill,
+// json-logic-rb included, follows these rules.
+var engine = new LogicEngine();
+engine.truthy = function(v){
+  return Array.isArray(v) ? v.length > 0 : (v !== null && typeof v === "object") ? true : !!v;
+};
+
+function apply(rule, data){
+  try{ return engine.run(rule, data); }
+  catch(e){
+    // The engine throws plain objects like {type:"Unknown Operator", key:"foo"}.
+    if(e instanceof Error) throw e;
+    throw new Error(e && e.type ? e.type + (e.key ? ": " + e.key : "") : String(e));
+  }
+}
+
 (function(){
   "use strict";
-
-  // getVar / jsonLogicTruthy / apply come from jsonlogic-core.js (static, loaded above) —
-  // that file never changes between publishes, only this one gets re-templated.
-
-  // Target language mode: __CURRENT_LANG_MODE__ is replaced with "ruby" or "jsonlogic"
-  // (Ruby only false/nil are falsy; every other language shown here follows JsonLogic's
-  // own JS-derived truthy rules). Left untouched, falls back to "jsonlogic".
-  var LANG_MODE;
-  try{ LANG_MODE = __CURRENT_LANG_MODE__; }
-  catch(e){ LANG_MODE = "jsonlogic"; }
 
   var DEFAULT_RULE = {"if":[{"<":[{"var":"cart.total"},50]}, "no discount", {">=":[{"var":"cart.total"},200]}, "15% off", "5% off"]};
   var DEFAULT_DATA = {cart:{total:120}};
@@ -164,7 +172,7 @@
     try{ data = JSON.parse(dataEl.value); }
     catch(e){ showError("Data is not valid JSON: " + e.message); return; }
     try{
-      var out = apply(rule, data, LANG_MODE);
+      var out = apply(rule, data);
       resultEl.className = "result ok";
       resultEl.textContent = JSON.stringify(out, null, 2);
     }catch(e){
