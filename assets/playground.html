@@ -2,53 +2,49 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <style>
   :root{
-    --bg:#ffffff;
-    --accent:#a3199a;
-    --mono-bg:#1c1b1f;
-    --mono-ink:#f0eef5;
-    --mono-line:#38343f;
-    --good:#3f7d4f;
-    --bad:#af3a3a;
+    --pane:#1c1b1f;
+    --pane-focus:#232127;
+    --ink:#f0eef5;
+    --line:#38343f;
+    --bad:#e06c6c;
   }
-  @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){ --bg:#121114; } }
-  :root[data-theme="dark"]{ --bg:#121114; }
   *{box-sizing:border-box;}
   html,body{height:100%;}
   body{
     margin:0;
-    background:var(--bg);
-    padding:max(8px,env(safe-area-inset-top)) max(8px,env(safe-area-inset-right)) max(8px,env(safe-area-inset-bottom)) max(8px,env(safe-area-inset-left));
+    background:var(--line);
+    padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
     display:grid;
-    gap:8px;
+    gap:1px;
     grid-template:"rule" 2fr "result" 1fr "data" 1fr / 1fr;
   }
   @media (min-width:768px){
     body{ grid-template:"rule data" 1fr "rule result" 1fr / 3fr 2fr; }
   }
   textarea,.result{
+    min-width:0;
     min-height:0;
     width:100%;
     height:100%;
     margin:0;
-    background:var(--mono-bg);
-    color:var(--mono-ink);
-    border:1px solid var(--mono-line);
-    border-radius:10px;
-    font:13px/1.55 'JetBrains Mono',ui-monospace,monospace;
+    border:0;
+    border-radius:0;
+    background:var(--pane);
+    color:var(--ink);
+    font:15px/1.5 'JetBrains Mono',ui-monospace,monospace;
     padding:12px 14px;
-    overflow:auto;
+    white-space:pre;
+    overflow:hidden;
   }
-  textarea{resize:none; tab-size:2;}
-  textarea:focus{outline:none; border-color:var(--accent);}
-  .result{white-space:pre-wrap; word-break:break-word;}
-  .result.ok{border-color:var(--good);}
-  .result.err{border-color:var(--bad); color:var(--bad);}
+  textarea{resize:none; tab-size:2; outline:none;}
+  textarea:focus{background:var(--pane-focus);}
+  .result.err{color:var(--bad);}
 </style>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400&display=swap">
 
-<textarea id="rule" style="grid-area:rule" spellcheck="false" aria-label="Rule"></textarea>
+<textarea id="rule" wrap="off" style="grid-area:rule" spellcheck="false" aria-label="Rule"></textarea>
 <output id="result" class="result ok" style="grid-area:result" aria-label="Result" aria-live="polite"></output>
-<textarea id="data" style="grid-area:data" spellcheck="false" aria-label="Data"></textarea>
+<textarea id="data" wrap="off" style="grid-area:data" spellcheck="false" aria-label="Data"></textarea>
 
 <script type="module">
 import { LogicEngine } from "https://cdn.jsdelivr.net/npm/json-logic-engine@5.0.7/dist/esm/index.js";
@@ -57,6 +53,18 @@ const engine = new LogicEngine();
 const ruleEl = document.getElementById("rule");
 const dataEl = document.getElementById("data");
 const resultEl = document.getElementById("result");
+
+// No scrolling: shrink each pane's font until its whole text fits.
+// ponytail: linear 0.5px steps, binary search if panes ever get huge.
+function fit(el){
+  let size = 15;
+  el.style.fontSize = size + "px";
+  while(size > 4 && (el.scrollHeight > el.clientHeight || el.scrollWidth > el.clientWidth)){
+    size -= 0.5;
+    el.style.fontSize = size + "px";
+  }
+}
+const fitAll = () => [ruleEl, dataEl, resultEl].forEach(fit);
 
 function evaluate(){
   try{
@@ -67,6 +75,7 @@ function evaluate(){
     resultEl.textContent = e.message ?? JSON.stringify(e);
     resultEl.className = "result err";
   }
+  fitAll();
 }
 
 // __INITIAL_RULE__ / __INITIAL_DATA__ are replaced with JSON literals before publishing.
@@ -81,5 +90,7 @@ ruleEl.value = JSON.stringify(rule, null, 2);
 dataEl.value = JSON.stringify(data, null, 2);
 ruleEl.addEventListener("input", evaluate);
 dataEl.addEventListener("input", evaluate);
+addEventListener("resize", fitAll);
+document.fonts.ready.then(fitAll);
 evaluate();
 </script>
