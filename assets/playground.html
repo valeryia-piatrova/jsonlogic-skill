@@ -1,247 +1,321 @@
 <title>JSON Logic Playground</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <style>
   :root{
-    --bg:#ffffff;
-    --ink:#1c1b1f;
-    --ink-dim:#6b6673;
-    --accent:#a3199a;
-    --mono-bg:#1c1b1f;
-    --mono-ink:#f0eef5;
-    --mono-line:#38343f;
-    --good:#3f7d4f;
-    --bad:#af3a3a;
-    padding-top:env(safe-area-inset-top,0px);
-    padding-bottom:env(safe-area-inset-bottom,0px);
+    --line:#e3dfe8;
+    --pane:#fcfbfd;
+    --pane-out:#f4f1f7;
+    --cur:#f2eef7;
+    --ink:#1f1c24;
+    --punct:#a39cad;
+    --op:#a3199a;
+    --key:#5a3fc0;
+    --str:#2c7a4b;
+    --num:#b4580a;
+    --lit:#1f63c4;
+    --bad:#c23b3b;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --line:#2b2732;
+      --pane:#16141b;
+      --pane-out:#1d1a24;
+      --cur:#201d28;
+      --ink:#ebe7f2;
+      --punct:#6d6679;
+      --op:#e27adb;
+      --key:#a99bff;
+      --str:#8fd4a5;
+      --num:#f3b073;
+      --lit:#7fb4ff;
+      --bad:#ff7b7b;
+    }
+  }
+  :root[data-theme="dark"]{
+    --line:#2b2732;
+    --pane:#16141b;
+    --pane-out:#1d1a24;
+    --cur:#201d28;
+    --ink:#ebe7f2;
+    --punct:#6d6679;
+    --op:#e27adb;
+    --key:#a99bff;
+    --str:#8fd4a5;
+    --num:#f3b073;
+    --lit:#7fb4ff;
+    --bad:#ff7b7b;
   }
   *{box-sizing:border-box;}
+  html,body{height:100%;}
   body{
     margin:0;
-    background:var(--bg);
+    background:var(--line);
+    padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    display:grid;
+    gap:1px;
+    grid-template:"rule" 2fr "data" 1fr "result" 1fr / 1fr;
+  }
+  @media (min-width:768px){
+    body{ grid-template:"rule data" 3fr "result result" 1fr / 3fr 2fr; }
+  }
+  .pane{
+    position:relative;
+    min-width:0;
+    min-height:0;
+    overflow:hidden;
+    background:var(--pane);
     color:var(--ink);
-    font:15px/1.5 'Inter',system-ui,-apple-system,sans-serif;
-    padding:24px 16px 48px;
+    font:15px/1.5 'JetBrains Mono',ui-monospace,monospace;
   }
-  .wrap{max-width:640px;margin:0 auto;}
-  h1{
-    font:800 32px/1.15 'Inter',sans-serif;
-    letter-spacing:-.01em;
-    margin:0 0 24px;
-  }
-  h1 .accent{color:var(--accent);}
-  .field{margin-bottom:22px;}
-  .field:last-child{margin-bottom:0;}
-  .field h2{
-    font:700 15px/1 'Inter',sans-serif;
-    color:var(--ink);
-    margin:0 0 8px;
-  }
-  textarea{
-    width:100%;
-    min-height:120px;
-    background:var(--mono-bg);
-    color:var(--mono-ink);
-    border:1px solid var(--mono-line);
-    border-radius:10px;
-    font:13px/1.55 'JetBrains Mono',monospace;
-    padding:12px 14px;
-    resize:vertical;
+  .pane.out{background:var(--pane-out);}
+  /* Editable panes: a highlighted <pre> sits under a transparent <textarea> with identical metrics. */
+  .pane pre,.pane textarea{
+    position:absolute;
+    inset:0;
+    margin:0;
+    border:0;
+    padding:14px 16px;
+    font:inherit;
+    white-space:pre;
     tab-size:2;
+    overflow:hidden;
   }
-  textarea:focus{outline:none;border-color:var(--accent);}
-  .result{
-    font:13px/1.6 'JetBrains Mono',monospace;
-    background:var(--mono-bg);
-    color:var(--mono-ink);
-    border-radius:10px;
-    padding:12px 14px;
-    min-height:50px;
-    white-space:pre-wrap;
-    word-break:break-word;
+  .pane textarea{
+    background:transparent;
+    color:transparent;
+    caret-color:var(--ink);
+    resize:none;
+    outline:none;
   }
-  .result.ok{box-shadow:inset 0 0 0 1px var(--good);}
-  .result.err{box-shadow:inset 0 0 0 1px var(--bad); color:var(--bad);}
-  .verify-btn{
+  /* IDE look: line-number gutter (width follows digit count via --g) and a current-line band (--ln). */
+  .code{--g:1; --ln:0;}
+  .code pre.hl,.code textarea{padding-left:calc(var(--g) * 1ch + 36px);}
+  .pane pre.gutter{
+    right:auto;
+    width:calc(var(--g) * 1ch + 22px);
+    padding-left:0;
+    padding-right:10px;
+    text-align:right;
+    color:var(--punct);
+    border-right:1px solid var(--line);
+  }
+  .cur{
+    position:absolute;
+    left:0;
+    right:0;
+    top:calc(14px + var(--ln) * 1.5em);
+    height:1.5em;
+    background:var(--cur);
     display:none;
-    margin-top:10px;
-    font:600 13px/1 'Inter',sans-serif;
-    color:var(--accent);
-    background:none;
-    border:1px solid var(--accent);
-    border-radius:999px;
-    padding:7px 14px;
-    cursor:pointer;
   }
-  .verify-btn.show{display:inline-block;}
-  .verify-btn:hover{background:var(--accent); color:#fff;}
-  .verify-note{
+  .code:focus-within .cur{display:block;}
+  .errline{
+    position:absolute;
+    left:0;
+    right:0;
+    top:calc(14px + var(--el) * 1.5em);
+    height:1.5em;
+    background:color-mix(in srgb,var(--bad) 16%,transparent);
     display:none;
-    margin:8px 0 0;
-    font-size:15px;
-    color:var(--ink-dim);
   }
-  .verify-note.show{display:block;}
-  details > summary{
-    display:inline-flex;
-    align-items:center;
-    gap:6px;
-    font:700 15px/1 'Inter',sans-serif;
-    color:var(--ink);
-    cursor:pointer;
-    list-style:none;
-  }
-  details > summary::-webkit-details-marker{display:none;}
-  details > summary::before{content:"▸"; color:var(--accent); font-size:20px; line-height:1;}
-  details[open] > summary::before{content:"▾";}
-  details > summary::after{
-    content:"click to expand";
-    color:var(--ink-dim);
-    font-weight:500;
-    opacity:0;
+  .code.has-err .errline{display:block;}
+  /* Icon-only pane tools, top-right; faded until the pane is hovered or focused. */
+  .tools{
+    position:absolute;
+    top:6px;
+    right:6px;
+    display:flex;
+    gap:2px;
+    opacity:.35;
     transition:opacity .15s;
   }
-  details[open] > summary::after{content:"click to collapse";}
-  details > summary:hover::after{opacity:1;}
-  details textarea{margin-top:8px;}
-  details[open] textarea{min-height:160px;}
-  .hint{
-    margin-top:24px;
-    font-size:15px;
-    color:var(--ink-dim);
-    text-align:center;
+  .pane:hover .tools,.pane:focus-within .tools{opacity:1;}
+  @media (hover:none){ .tools{opacity:1;} }
+  .tools button{
+    display:grid;
+    place-items:center;
+    width:28px;
+    height:28px;
+    padding:0;
+    border:0;
+    border-radius:6px;
+    background:transparent;
+    color:var(--punct);
+    cursor:pointer;
   }
+  .tools button:hover{background:var(--cur); color:var(--ink);}
+  .tools button:focus-visible{outline:2px solid var(--key); outline-offset:-2px;}
+  .tools svg{width:16px; height:16px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round;}
+  .pane textarea::selection{background:color-mix(in srgb,var(--key) 30%,transparent);}
+  .p{color:var(--punct);}
+  .o{color:var(--op);}
+  .k{color:var(--key);}
+  .s{color:var(--str);}
+  .n{color:var(--num);}
+  .l{color:var(--lit);}
+  .err{color:var(--bad);}
 </style>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400&display=swap">
 
-<div class="wrap">
-  <h1><span class="accent">JSON</span> Logic Playground</h1>
-
-  <div class="field">
-    <h2>Rule</h2>
-    <textarea id="rule" spellcheck="false" style="min-height:220px;"></textarea>
-    <button class="verify-btn" id="verifyBtn" type="button">Verify in chat →</button>
-    <p class="verify-note" id="verifyNote">For a 100% guaranteed match with the real library, verify in chat.</p>
-  </div>
-
-  <div class="field">
-    <h2>Result</h2>
-    <div class="result ok" id="result"></div>
-  </div>
-
-  <details class="field">
-    <summary>Data</summary>
-    <textarea id="data" spellcheck="false"></textarea>
-  </details>
-
-  <p class="hint">Rule and data are editable — the page recalculates live. This is the same playground that opens automatically each time the skill runs.</p>
-</div>
+<div class="pane code" style="grid-area:rule"><div class="cur"></div><div class="errline"></div><pre class="gutter" aria-hidden="true"></pre><pre class="hl" aria-hidden="true"></pre><textarea id="rule" wrap="off" spellcheck="false" aria-label="Rule"></textarea></div>
+<div class="pane code" style="grid-area:data"><div class="cur"></div><div class="errline"></div><pre class="gutter" aria-hidden="true"></pre><pre class="hl" aria-hidden="true"></pre><textarea id="data" wrap="off" spellcheck="false" aria-label="Data"></textarea></div>
+<div class="pane out" style="grid-area:result"><pre id="result" aria-label="Result" aria-live="polite"></pre></div>
 
 <script type="module">
-import { LogicEngine } from "https://cdn.jsdelivr.net/npm/json-logic-engine@5.0.7/dist/esm/index.js";
+// Loaded dynamically so the editors still render if the CDN is unreachable.
+let engine = null, engineError = "";
+import("https://cdn.jsdelivr.net/npm/json-logic-engine@5.0.7/dist/esm/index.js").then(
+  m => { engine = new m.LogicEngine(); render(); },
+  () => { engineError = "json-logic-engine failed to load from cdn.jsdelivr.net"; render(); }
+);
 
-// Rules run on json-logic-engine; only truthiness is set here, to JsonLogic's own:
-// [] is falsy, any object (even {}) is truthy. Every library listed in the skill,
-// json-logic-rb included, follows these rules.
-var engine = new LogicEngine();
-engine.truthy = function(v){
-  return Array.isArray(v) ? v.length > 0 : (v !== null && typeof v === "object") ? true : !!v;
-};
+const ruleEl = document.getElementById("rule");
+const dataEl = document.getElementById("data");
+const resultEl = document.getElementById("result");
+const panes = document.querySelectorAll(".pane");
 
-function apply(rule, data){
-  try{ return engine.run(rule, data); }
-  catch(e){
-    // The engine throws plain objects like {type:"Unknown Operator", key:"foo"}.
-    if(e instanceof Error) throw e;
-    throw new Error(e && e.type ? e.type + (e.key ? ": " + e.key : "") : String(e));
+// Tolerant JSON tokenizer: half-typed input still highlights whatever it can.
+const TOKEN = /("(?:\\.|[^"\\\n])*")(\s*:)?|(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)|\b(true|false|null)\b|([{}\[\],:])/g;
+const esc = s => s.replace(/[&<>]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;"})[c]);
+function highlight(src, keyClass){
+  return esc(src).replace(TOKEN, (m, str, colon, num, lit, punct) =>
+    str ? `<span class="${colon ? keyClass : "s"}">${str}</span>${colon ? `<span class="p">${colon}</span>` : ""}`
+    : num ? `<span class="n">${num}</span>`
+    : lit ? `<span class="l">${lit}</span>`
+    : `<span class="p">${punct}</span>`) + "\n";
+}
+
+// No scrolling: shrink each pane's font until its whole text fits.
+// ponytail: linear 0.5px steps, binary search if panes ever get huge.
+function fit(pane){
+  const pre = pane.querySelector("pre:not(.gutter)");
+  let size = 15;
+  pane.style.fontSize = size + "px";
+  while(size > 4 && (pre.scrollHeight > pre.clientHeight || pre.scrollWidth > pre.clientWidth)){
+    size -= 0.5;
+    pane.style.fontSize = size + "px";
   }
 }
 
-(function(){
-  "use strict";
+// Error line from JSON.parse's message: Chrome/Firefox give "line N", older engines
+// "position N"; Safari gives neither, so no line is marked there.
+function errLine(src, msg){
+  const line = msg.match(/line (\d+)/);
+  if(line) return +line[1] - 1;
+  const pos = msg.match(/position (\d+)/);
+  return pos ? src.slice(0, +pos[1]).split("\n").length - 1 : -1;
+}
 
-  var DEFAULT_RULE = {"if":[{"<":[{"var":"cart.total"},50]}, "no discount", {">=":[{"var":"cart.total"},200]}, "15% off", "5% off"]};
-  var DEFAULT_DATA = {cart:{total:120}};
+function gutter(ta, bad){
+  const n = ta.value.split("\n").length;
+  const pane = ta.parentElement;
+  pane.querySelector(".gutter").innerHTML = Array.from({length:n}, (_, i) => i === bad ? `<span class="err">${i + 1}</span>` : i + 1).join("\n");
+  pane.style.setProperty("--g", String(n).length);
+  pane.style.setProperty("--el", bad);
+  pane.classList.toggle("has-err", bad >= 0);
+}
 
-  var ruleEl = document.getElementById("rule");
-  var dataEl = document.getElementById("data");
-  var resultEl = document.getElementById("result");
+const parse = ta => { try{ return {value: JSON.parse(ta.value)}; }catch(error){ return {error}; } };
+const markLine = ta => ta.parentElement.style.setProperty("--ln", ta.value.slice(0, ta.selectionStart).split("\n").length - 1);
 
-  function evaluate(){
-    var rule, data;
-    try{ rule = JSON.parse(ruleEl.value); }
-    catch(e){ showError("Rule is not valid JSON: " + e.message); return; }
-    try{ data = JSON.parse(dataEl.value); }
-    catch(e){ showError("Data is not valid JSON: " + e.message); return; }
-    try{
-      var out = apply(rule, data);
-      resultEl.className = "result ok";
-      resultEl.textContent = JSON.stringify(out, null, 2);
-    }catch(e){
-      showError(e.message);
-    }
+function render(){
+  const rule = parse(ruleEl), data = parse(dataEl);
+  gutter(ruleEl, rule.error ? errLine(ruleEl.value, rule.error.message) : -1);
+  gutter(dataEl, data.error ? errLine(dataEl.value, data.error.message) : -1);
+  // In the rule every key is an operator; in the data it's a field name.
+  ruleEl.previousElementSibling.innerHTML = highlight(ruleEl.value, "o");
+  dataEl.previousElementSibling.innerHTML = highlight(dataEl.value, "k");
+  try{
+    if(rule.error) throw rule.error;
+    if(data.error) throw data.error;
+    if(!engine) throw new Error(engineError);
+    resultEl.innerHTML = highlight(JSON.stringify(engine.run(rule.value, data.value), null, 2) ?? "", "k");
+    resultEl.className = "";
+  }catch(e){
+    // The engine throws plain objects like {type:"Unknown Operator", key:"foo"}.
+    resultEl.textContent = e.message ?? JSON.stringify(e);
+    resultEl.className = "err";
   }
+  panes.forEach(fit);
+}
 
-  function showError(msg){
-    resultEl.className = "result err";
-    resultEl.textContent = msg;
+// __INITIAL_RULE__ / __INITIAL_DATA__ are replaced with JSON literals before publishing.
+// Left untouched, the reference throws and the built-in example is used instead.
+let seedRule, seedData;
+try{ seedRule = __INITIAL_RULE__; seedData = __INITIAL_DATA__; }
+catch{
+  seedRule = {"if":[{"<":[{"var":"cart.total"},50]}, "no discount", {">=":[{"var":"cart.total"},200]}, "15% off", "5% off"]};
+  seedData = {cart:{total:120}};
+}
+ruleEl.value = JSON.stringify(seedRule, null, 2);
+dataEl.value = JSON.stringify(seedData, null, 2);
+// Editor keys: Tab indents, Enter keeps the indent (one level deeper after { or [),
+// Esc leaves the field so Tab can move focus again. insertText keeps native undo.
+const insert = text => document.execCommand("insertText", false, text);
+function format(ta){
+  let out;
+  try{ out = JSON.stringify(JSON.parse(ta.value), null, 2); }catch{ return; } // invalid JSON is already flagged
+  if(out === ta.value) return;
+  ta.focus();
+  ta.select();
+  insert(out);
+}
+function onKey(e){
+  const ta = e.target;
+  if(e.key === "Escape") return ta.blur();
+  if(e.code === "KeyF" && e.shiftKey && e.altKey){ e.preventDefault(); return format(ta); }
+  if(e.key === "Tab" && !e.shiftKey && !e.altKey && !e.ctrlKey && !e.metaKey){
+    e.preventDefault();
+    insert("  ");
+  }else if(e.key === "Enter" && !e.isComposing){
+    const before = ta.value.slice(0, ta.selectionStart);
+    const indent = before.slice(before.lastIndexOf("\n") + 1).match(/^ */)[0];
+    e.preventDefault();
+    insert("\n" + indent + (/[{[]\s*$/.test(before) ? "  " : ""));
   }
+}
 
-  // "Verify in chat": copies a ready-to-paste message with the CURRENT rule/data
-  // (whatever the user has typed, not just the initial seed) so Claude can run it
-  // through the real library for whichever language is in play, instead of this
-  // page's JS approximation. Only shown once the user has actually changed
-  // something away from the seed.
-  //
-  // Target library label: __VERIFY_LIB_LABEL__ names the real implementation to
-  // point at (e.g. "json-logic-js", "maykin-json-logic-py"). Left untouched, falls
-  // back to Ruby's json-logic-rb — the same default used elsewhere in this skill
-  // when no language/library was specified.
-  var VERIFY_LIB_LABEL;
-  try{ VERIFY_LIB_LABEL = __VERIFY_LIB_LABEL__; }
-  catch(e){ VERIFY_LIB_LABEL = "json-logic-rb (scripts/jsonlogic.rb)"; }
-
-  var verifyBtn = document.getElementById("verifyBtn");
-  var verifyNote = document.getElementById("verifyNote");
-  verifyNote.textContent = "For a 100% guaranteed match with " + VERIFY_LIB_LABEL + ", verify in chat.";
-  var verifyNoteDefault = verifyNote.textContent;
-  var seedRule, seedData;
-
-  function checkChanged(){
-    var changed = ruleEl.value !== seedRule || dataEl.value !== seedData;
-    verifyBtn.classList.toggle("show", changed);
-    verifyNote.classList.toggle("show", changed);
+for(const ta of [ruleEl, dataEl]){
+  ta.addEventListener("input", render);
+  ta.addEventListener("keydown", onKey);
+  for(const ev of ["input", "keyup", "click", "focus"]) ta.addEventListener(ev, () => markLine(ta));
+}
+// Pane tools: format (editors only) and copy (every pane), as icon buttons.
+const svg = d => `<svg viewBox="0 0 24 24" aria-hidden="true">${d}</svg>`;
+const ICON = {
+  format: svg('<path d="M8 3H7a2 2 0 0 0-2 2v5a2 2 0 0 1-2 2 2 2 0 0 1 2 2v5a2 2 0 0 0 2 2h1M16 21h1a2 2 0 0 0 2-2v-5a2 2 0 0 1 2-2 2 2 0 0 1-2-2V5a2 2 0 0 0-2-2h-1"/>'),
+  copy: svg('<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>'),
+  ok: svg('<path d="M20 6 9 17l-5-5"/>'),
+  fail: svg('<path d="M18 6 6 18M6 6l12 12"/>'),
+};
+async function copyText(text){
+  try{ await navigator.clipboard.writeText(text); return true; }
+  catch{ // clipboard API can be blocked in sandboxed frames; fall back to execCommand
+    const tmp = Object.assign(document.createElement("textarea"), {value: text});
+    document.body.append(tmp);
+    tmp.select();
+    const ok = document.execCommand("copy");
+    tmp.remove();
+    return ok;
   }
-
-  ruleEl.addEventListener("input", function(){ evaluate(); checkChanged(); });
-  dataEl.addEventListener("input", function(){ evaluate(); checkChanged(); });
-
-  verifyBtn.addEventListener("click", function(){
-    var msg = "Check this rule with the real " + VERIFY_LIB_LABEL + ", " +
-      "not the playground's approximation:\n\nRule:\n" + ruleEl.value +
-      "\n\nData:\n" + dataEl.value;
-    function done(ok){
-      verifyNote.textContent = ok
-        ? "Copied — paste into the chat with Claude."
-        : "Couldn't copy automatically — select the rule/data above and paste them into the chat yourself.";
-      setTimeout(function(){ verifyNote.textContent = verifyNoteDefault; }, 4000);
-    }
-    if(navigator.clipboard && navigator.clipboard.writeText){
-      navigator.clipboard.writeText(msg).then(function(){ done(true); }, function(){ done(false); });
-    }else{
-      done(false);
-    }
+}
+for(const pane of panes){
+  const ta = pane.querySelector("textarea");
+  const tools = document.createElement("div");
+  tools.className = "tools";
+  tools.innerHTML = (ta ? `<button type="button" data-act="format" aria-label="Format" title="Format (Shift+Alt+F)">${ICON.format}</button>` : "")
+    + `<button type="button" data-act="copy" aria-label="Copy" title="Copy">${ICON.copy}</button>`;
+  tools.addEventListener("click", async e => {
+    const btn = e.target.closest("button");
+    if(!btn) return;
+    if(btn.dataset.act === "format") return format(ta);
+    btn.innerHTML = (await copyText(ta ? ta.value : resultEl.textContent)) ? ICON.ok : ICON.fail;
+    setTimeout(() => { btn.innerHTML = ICON.copy; }, 1200);
   });
+  pane.append(tools);
+}
 
-  // Seed with the rule/data for the current task: __INITIAL_RULE__ / __INITIAL_DATA__
-  // are replaced with the real values (as JS/JSON literals) before this file is
-  // published as an artifact. Left untouched, the reference throws and this falls
-  // back to a built-in default, so the page never renders broken.
-  var INITIAL_RULE, INITIAL_DATA;
-  try{ INITIAL_RULE = __INITIAL_RULE__; INITIAL_DATA = __INITIAL_DATA__; }
-  catch(e){ INITIAL_RULE = DEFAULT_RULE; INITIAL_DATA = DEFAULT_DATA; }
-  ruleEl.value = JSON.stringify(INITIAL_RULE, null, 2);
-  dataEl.value = JSON.stringify(INITIAL_DATA, null, 2);
-  seedRule = ruleEl.value;
-  seedData = dataEl.value;
-  evaluate();
-})();
+addEventListener("resize", () => panes.forEach(fit));
+document.fonts.ready.then(() => panes.forEach(fit));
+render();
 </script>
