@@ -5,7 +5,7 @@
     --line:#e3dfe8;
     --pane:#fcfbfd;
     --pane-out:#f4f1f7;
-    --pane-focus:#ffffff;
+    --cur:#f2eef7;
     --ink:#1f1c24;
     --punct:#a39cad;
     --op:#a3199a;
@@ -20,7 +20,7 @@
       --line:#2b2732;
       --pane:#16141b;
       --pane-out:#1d1a24;
-      --pane-focus:#1a1820;
+      --cur:#201d28;
       --ink:#ebe7f2;
       --punct:#6d6679;
       --op:#e27adb;
@@ -35,7 +35,7 @@
     --line:#2b2732;
     --pane:#16141b;
     --pane-out:#1d1a24;
-    --pane-focus:#1a1820;
+    --cur:#201d28;
     --ink:#ebe7f2;
     --punct:#6d6679;
     --op:#e27adb;
@@ -66,9 +66,7 @@
     background:var(--pane);
     color:var(--ink);
     font:15px/1.5 'JetBrains Mono',ui-monospace,monospace;
-    transition:background .15s;
   }
-  .pane:focus-within{background:var(--pane-focus);}
   .pane.out{background:var(--pane-out);}
   /* Editable panes: a highlighted <pre> sits under a transparent <textarea> with identical metrics. */
   .pane pre,.pane textarea{
@@ -89,6 +87,28 @@
     resize:none;
     outline:none;
   }
+  /* IDE look: line-number gutter (width follows digit count via --g) and a current-line band (--ln). */
+  .code{--g:1; --ln:0;}
+  .code pre.hl,.code textarea{padding-left:calc(var(--g) * 1ch + 36px);}
+  .pane pre.gutter{
+    right:auto;
+    width:calc(var(--g) * 1ch + 22px);
+    padding-left:0;
+    padding-right:10px;
+    text-align:right;
+    color:var(--punct);
+    border-right:1px solid var(--line);
+  }
+  .cur{
+    position:absolute;
+    left:0;
+    right:0;
+    top:calc(14px + var(--ln) * 1.5em);
+    height:1.5em;
+    background:var(--cur);
+    display:none;
+  }
+  .code:focus-within .cur{display:block;}
   .pane textarea::selection{background:color-mix(in srgb,var(--key) 30%,transparent);}
   .p{color:var(--punct);}
   .o{color:var(--op);}
@@ -100,8 +120,8 @@
 </style>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400&display=swap">
 
-<div class="pane" style="grid-area:rule"><pre aria-hidden="true"></pre><textarea id="rule" wrap="off" spellcheck="false" aria-label="Rule"></textarea></div>
-<div class="pane" style="grid-area:data"><pre aria-hidden="true"></pre><textarea id="data" wrap="off" spellcheck="false" aria-label="Data"></textarea></div>
+<div class="pane code" style="grid-area:rule"><div class="cur"></div><pre class="gutter" aria-hidden="true"></pre><pre class="hl" aria-hidden="true"></pre><textarea id="rule" wrap="off" spellcheck="false" aria-label="Rule"></textarea></div>
+<div class="pane code" style="grid-area:data"><div class="cur"></div><pre class="gutter" aria-hidden="true"></pre><pre class="hl" aria-hidden="true"></pre><textarea id="data" wrap="off" spellcheck="false" aria-label="Data"></textarea></div>
 <div class="pane out" style="grid-area:result"><pre id="result" aria-label="Result" aria-live="polite"></pre></div>
 
 <script type="module">
@@ -127,7 +147,7 @@ function highlight(src, keyClass){
 // No scrolling: shrink each pane's font until its whole text fits.
 // ponytail: linear 0.5px steps, binary search if panes ever get huge.
 function fit(pane){
-  const pre = pane.querySelector("pre");
+  const pre = pane.querySelector("pre:not(.gutter)");
   let size = 15;
   pane.style.fontSize = size + "px";
   while(size > 4 && (pre.scrollHeight > pre.clientHeight || pre.scrollWidth > pre.clientWidth)){
@@ -136,7 +156,16 @@ function fit(pane){
   }
 }
 
+function gutter(ta){
+  const n = ta.value.split("\n").length;
+  ta.parentElement.querySelector(".gutter").textContent = Array.from({length:n}, (_, i) => i + 1).join("\n");
+  ta.parentElement.style.setProperty("--g", String(n).length);
+}
+const markLine = ta => ta.parentElement.style.setProperty("--ln", ta.value.slice(0, ta.selectionStart).split("\n").length - 1);
+
 function render(){
+  gutter(ruleEl);
+  gutter(dataEl);
   // In the rule every key is an operator; in the data it's a field name.
   ruleEl.previousElementSibling.innerHTML = highlight(ruleEl.value, "o");
   dataEl.previousElementSibling.innerHTML = highlight(dataEl.value, "k");
@@ -161,8 +190,10 @@ catch{
 }
 ruleEl.value = JSON.stringify(rule, null, 2);
 dataEl.value = JSON.stringify(data, null, 2);
-ruleEl.addEventListener("input", render);
-dataEl.addEventListener("input", render);
+for(const ta of [ruleEl, dataEl]){
+  ta.addEventListener("input", render);
+  for(const ev of ["input", "keyup", "click", "focus"]) ta.addEventListener(ev, () => markLine(ta));
+}
 addEventListener("resize", () => panes.forEach(fit));
 document.fonts.ready.then(() => panes.forEach(fit));
 render();
