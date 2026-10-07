@@ -45,7 +45,7 @@ there's no separate decision to check on each time.
 rules with [json-logic-engine](https://github.com/json-logic/json-logic-engine), loaded from
 jsDelivr with its default settings, so there is no interpreter file to ship alongside it.
 
-1. Read `assets/playground.html`. It's a fixed-design page (rule, live result, data) —
+1. Read `assets/playground.html`. It's a fixed-design page (rule, live result and data panes, no visible text) —
    never hand-edit its CSS/layout; only the placeholders below change per invocation.
 2. Replace `__INITIAL_RULE__` and `__INITIAL_DATA__` with the rule/data objects, each as
    a JS/JSON literal (the output of `JSON.stringify(...)`, valid to drop in as-is). No

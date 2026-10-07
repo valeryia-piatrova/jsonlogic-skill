@@ -1,117 +1,54 @@
 <title>JSON Logic Playground</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <style>
   :root{
     --bg:#ffffff;
-    --ink:#1c1b1f;
-    --ink-dim:#6b6673;
     --accent:#a3199a;
     --mono-bg:#1c1b1f;
     --mono-ink:#f0eef5;
     --mono-line:#38343f;
     --good:#3f7d4f;
     --bad:#af3a3a;
-    padding-top:env(safe-area-inset-top,0px);
-    padding-bottom:env(safe-area-inset-bottom,0px);
   }
+  @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){ --bg:#121114; } }
+  :root[data-theme="dark"]{ --bg:#121114; }
   *{box-sizing:border-box;}
+  html,body{height:100%;}
   body{
     margin:0;
     background:var(--bg);
-    color:var(--ink);
-    font:15px/1.5 'Inter',system-ui,-apple-system,sans-serif;
-    padding:24px 16px 48px;
+    padding:max(8px,env(safe-area-inset-top)) max(8px,env(safe-area-inset-right)) max(8px,env(safe-area-inset-bottom)) max(8px,env(safe-area-inset-left));
+    display:grid;
+    gap:8px;
+    grid-template:"rule" 2fr "result" 1fr "data" 1fr / 1fr;
   }
-  .wrap{max-width:640px;margin:0 auto;}
-  h1{
-    font:800 32px/1.15 'Inter',sans-serif;
-    letter-spacing:-.01em;
-    margin:0 0 24px;
+  @media (min-width:768px){
+    body{ grid-template:"rule data" 1fr "rule result" 1fr / 3fr 2fr; }
   }
-  h1 .accent{color:var(--accent);}
-  .field{margin-bottom:22px;}
-  .field:last-child{margin-bottom:0;}
-  .field h2{
-    font:700 15px/1 'Inter',sans-serif;
-    color:var(--ink);
-    margin:0 0 8px;
-  }
-  textarea{
+  textarea,.result{
+    min-height:0;
     width:100%;
-    min-height:120px;
+    height:100%;
+    margin:0;
     background:var(--mono-bg);
     color:var(--mono-ink);
     border:1px solid var(--mono-line);
     border-radius:10px;
-    font:13px/1.55 'JetBrains Mono',monospace;
+    font:13px/1.55 'JetBrains Mono',ui-monospace,monospace;
     padding:12px 14px;
-    resize:vertical;
-    tab-size:2;
+    overflow:auto;
   }
-  textarea:focus{outline:none;border-color:var(--accent);}
-  .result{
-    font:13px/1.6 'JetBrains Mono',monospace;
-    background:var(--mono-bg);
-    color:var(--mono-ink);
-    border-radius:10px;
-    padding:12px 14px;
-    min-height:50px;
-    white-space:pre-wrap;
-    word-break:break-word;
-  }
-  .result.ok{box-shadow:inset 0 0 0 1px var(--good);}
-  .result.err{box-shadow:inset 0 0 0 1px var(--bad); color:var(--bad);}
-  details > summary{
-    display:inline-flex;
-    align-items:center;
-    gap:6px;
-    font:700 15px/1 'Inter',sans-serif;
-    color:var(--ink);
-    cursor:pointer;
-    list-style:none;
-  }
-  details > summary::-webkit-details-marker{display:none;}
-  details > summary::before{content:"▸"; color:var(--accent); font-size:20px; line-height:1;}
-  details[open] > summary::before{content:"▾";}
-  details > summary::after{
-    content:"click to expand";
-    color:var(--ink-dim);
-    font-weight:500;
-    opacity:0;
-    transition:opacity .15s;
-  }
-  details[open] > summary::after{content:"click to collapse";}
-  details > summary:hover::after{opacity:1;}
-  details textarea{margin-top:8px;}
-  details[open] textarea{min-height:160px;}
-  .hint{
-    margin-top:24px;
-    font-size:15px;
-    color:var(--ink-dim);
-    text-align:center;
-  }
+  textarea{resize:none; tab-size:2;}
+  textarea:focus{outline:none; border-color:var(--accent);}
+  .result{white-space:pre-wrap; word-break:break-word;}
+  .result.ok{border-color:var(--good);}
+  .result.err{border-color:var(--bad); color:var(--bad);}
 </style>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400&display=swap">
 
-<div class="wrap">
-  <h1><span class="accent">JSON</span> Logic Playground</h1>
-
-  <div class="field">
-    <h2>Rule</h2>
-    <textarea id="rule" spellcheck="false" style="min-height:220px;"></textarea>
-  </div>
-
-  <div class="field">
-    <h2>Result</h2>
-    <div class="result ok" id="result"></div>
-  </div>
-
-  <details class="field">
-    <summary>Data</summary>
-    <textarea id="data" spellcheck="false"></textarea>
-  </details>
-
-  <p class="hint">Rule and data are editable — the page recalculates live. This is the same playground that opens automatically each time the skill runs.</p>
-</div>
+<textarea id="rule" style="grid-area:rule" spellcheck="false" aria-label="Rule"></textarea>
+<output id="result" class="result ok" style="grid-area:result" aria-label="Result" aria-live="polite"></output>
+<textarea id="data" style="grid-area:data" spellcheck="false" aria-label="Data"></textarea>
 
 <script type="module">
 import { LogicEngine } from "https://cdn.jsdelivr.net/npm/json-logic-engine@5.0.7/dist/esm/index.js";
