@@ -2,11 +2,48 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <style>
   :root{
-    --pane:#1c1b1f;
-    --pane-focus:#232127;
-    --ink:#f0eef5;
-    --line:#38343f;
-    --bad:#e06c6c;
+    --line:#e3dfe8;
+    --pane:#fcfbfd;
+    --pane-out:#f4f1f7;
+    --pane-focus:#ffffff;
+    --ink:#1f1c24;
+    --punct:#a39cad;
+    --op:#a3199a;
+    --key:#5a3fc0;
+    --str:#2c7a4b;
+    --num:#b4580a;
+    --lit:#1f63c4;
+    --bad:#c23b3b;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --line:#2b2732;
+      --pane:#16141b;
+      --pane-out:#1d1a24;
+      --pane-focus:#1a1820;
+      --ink:#ebe7f2;
+      --punct:#6d6679;
+      --op:#e27adb;
+      --key:#a99bff;
+      --str:#8fd4a5;
+      --num:#f3b073;
+      --lit:#7fb4ff;
+      --bad:#ff7b7b;
+    }
+  }
+  :root[data-theme="dark"]{
+    --line:#2b2732;
+    --pane:#16141b;
+    --pane-out:#1d1a24;
+    --pane-focus:#1a1820;
+    --ink:#ebe7f2;
+    --punct:#6d6679;
+    --op:#e27adb;
+    --key:#a99bff;
+    --str:#8fd4a5;
+    --num:#f3b073;
+    --lit:#7fb4ff;
+    --bad:#ff7b7b;
   }
   *{box-sizing:border-box;}
   html,body{height:100%;}
@@ -21,30 +58,51 @@
   @media (min-width:768px){
     body{ grid-template:"rule data" 1fr "rule result" 1fr / 3fr 2fr; }
   }
-  textarea,.result{
+  .pane{
+    position:relative;
     min-width:0;
     min-height:0;
-    width:100%;
-    height:100%;
-    margin:0;
-    border:0;
-    border-radius:0;
+    overflow:hidden;
     background:var(--pane);
     color:var(--ink);
     font:15px/1.5 'JetBrains Mono',ui-monospace,monospace;
-    padding:12px 14px;
+    transition:background .15s;
+  }
+  .pane:focus-within{background:var(--pane-focus);}
+  .pane.out{background:var(--pane-out);}
+  /* Editable panes: a highlighted <pre> sits under a transparent <textarea> with identical metrics. */
+  .pane pre,.pane textarea{
+    position:absolute;
+    inset:0;
+    margin:0;
+    border:0;
+    padding:14px 16px;
+    font:inherit;
     white-space:pre;
+    tab-size:2;
     overflow:hidden;
   }
-  textarea{resize:none; tab-size:2; outline:none;}
-  textarea:focus{background:var(--pane-focus);}
-  .result.err{color:var(--bad);}
+  .pane textarea{
+    background:transparent;
+    color:transparent;
+    caret-color:var(--ink);
+    resize:none;
+    outline:none;
+  }
+  .pane textarea::selection{background:color-mix(in srgb,var(--key) 30%,transparent);}
+  .p{color:var(--punct);}
+  .o{color:var(--op);}
+  .k{color:var(--key);}
+  .s{color:var(--str);}
+  .n{color:var(--num);}
+  .l{color:var(--lit);}
+  .err{color:var(--bad);}
 </style>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400&display=swap">
 
-<textarea id="rule" wrap="off" style="grid-area:rule" spellcheck="false" aria-label="Rule"></textarea>
-<output id="result" class="result ok" style="grid-area:result" aria-label="Result" aria-live="polite"></output>
-<textarea id="data" wrap="off" style="grid-area:data" spellcheck="false" aria-label="Data"></textarea>
+<div class="pane" style="grid-area:rule"><pre aria-hidden="true"></pre><textarea id="rule" wrap="off" spellcheck="false" aria-label="Rule"></textarea></div>
+<div class="pane out" style="grid-area:result"><pre id="result" aria-label="Result" aria-live="polite"></pre></div>
+<div class="pane" style="grid-area:data"><pre aria-hidden="true"></pre><textarea id="data" wrap="off" spellcheck="false" aria-label="Data"></textarea></div>
 
 <script type="module">
 import { LogicEngine } from "https://cdn.jsdelivr.net/npm/json-logic-engine@5.0.7/dist/esm/index.js";
@@ -53,29 +111,44 @@ const engine = new LogicEngine();
 const ruleEl = document.getElementById("rule");
 const dataEl = document.getElementById("data");
 const resultEl = document.getElementById("result");
+const panes = document.querySelectorAll(".pane");
+
+// Tolerant JSON tokenizer: half-typed input still highlights whatever it can.
+const TOKEN = /("(?:\\.|[^"\\\n])*")(\s*:)?|(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)|\b(true|false|null)\b|([{}\[\],:])/g;
+const esc = s => s.replace(/[&<>]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;"})[c]);
+function highlight(src, keyClass){
+  return esc(src).replace(TOKEN, (m, str, colon, num, lit, punct) =>
+    str ? `<span class="${colon ? keyClass : "s"}">${str}</span>${colon ? `<span class="p">${colon}</span>` : ""}`
+    : num ? `<span class="n">${num}</span>`
+    : lit ? `<span class="l">${lit}</span>`
+    : `<span class="p">${punct}</span>`) + "\n";
+}
 
 // No scrolling: shrink each pane's font until its whole text fits.
 // ponytail: linear 0.5px steps, binary search if panes ever get huge.
-function fit(el){
+function fit(pane){
+  const pre = pane.querySelector("pre");
   let size = 15;
-  el.style.fontSize = size + "px";
-  while(size > 4 && (el.scrollHeight > el.clientHeight || el.scrollWidth > el.clientWidth)){
+  pane.style.fontSize = size + "px";
+  while(size > 4 && (pre.scrollHeight > pre.clientHeight || pre.scrollWidth > pre.clientWidth)){
     size -= 0.5;
-    el.style.fontSize = size + "px";
+    pane.style.fontSize = size + "px";
   }
 }
-const fitAll = () => [ruleEl, dataEl, resultEl].forEach(fit);
 
-function evaluate(){
+function render(){
+  // In the rule every key is an operator; in the data it's a field name.
+  ruleEl.previousElementSibling.innerHTML = highlight(ruleEl.value, "o");
+  dataEl.previousElementSibling.innerHTML = highlight(dataEl.value, "k");
   try{
-    resultEl.textContent = JSON.stringify(engine.run(JSON.parse(ruleEl.value), JSON.parse(dataEl.value)), null, 2);
-    resultEl.className = "result ok";
+    resultEl.innerHTML = highlight(JSON.stringify(engine.run(JSON.parse(ruleEl.value), JSON.parse(dataEl.value)), null, 2) ?? "", "k");
+    resultEl.className = "";
   }catch(e){
     // The engine throws plain objects like {type:"Unknown Operator", key:"foo"}.
     resultEl.textContent = e.message ?? JSON.stringify(e);
-    resultEl.className = "result err";
+    resultEl.className = "err";
   }
-  fitAll();
+  panes.forEach(fit);
 }
 
 // __INITIAL_RULE__ / __INITIAL_DATA__ are replaced with JSON literals before publishing.
@@ -88,9 +161,9 @@ catch{
 }
 ruleEl.value = JSON.stringify(rule, null, 2);
 dataEl.value = JSON.stringify(data, null, 2);
-ruleEl.addEventListener("input", evaluate);
-dataEl.addEventListener("input", evaluate);
-addEventListener("resize", fitAll);
-document.fonts.ready.then(fitAll);
-evaluate();
+ruleEl.addEventListener("input", render);
+dataEl.addEventListener("input", render);
+addEventListener("resize", () => panes.forEach(fit));
+document.fonts.ready.then(() => panes.forEach(fit));
+render();
 </script>
