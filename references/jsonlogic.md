@@ -40,7 +40,7 @@ different data objects. Always be explicit about what shape of data a rule expec
 ## Truthiness and type coercion
 
 Built-in operators already follow JsonLogic's own (JS-style) semantics — verified
-by actually running both through [scripts/jsonlogic.rb](scripts/jsonlogic.rb), not
+by actually running both through [scripts/jsonlogic.rb](../scripts/jsonlogic.rb), not
 just reading the gem's source. No setup needed; this is the default.
 
 ```bash
