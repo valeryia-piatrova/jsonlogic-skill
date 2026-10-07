@@ -1,0 +1,49 @@
+name: Checks
+
+on: [push, pull_request]
+
+jobs:
+  skill:
+    name: SKILL.md, manifests, examples
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+      - run: gem install json-logic-rb
+      - run: ruby .github/checks/skill.rb
+
+  playground:
+    name: Playground vs bundled tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+      # Same engine version the playground pins.
+      - run: npm install --no-save json-logic-engine@$(grep -oE 'json-logic-engine@[0-9.]+' assets/playground.html | cut -d@ -f2)
+      - run: node .github/checks/playground.mjs
+
+  links:
+    name: Links in Markdown
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: lycheeverse/lychee-action@v2
+        with:
+          args: --no-progress --exclude-path references/libraries.md './**/*.md'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  secrets:
+    name: Secrets (gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
