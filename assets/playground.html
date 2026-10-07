@@ -119,6 +119,33 @@
     display:none;
   }
   .code.has-err .errline{display:block;}
+  /* Icon-only pane tools, top-right; faded until the pane is hovered or focused. */
+  .tools{
+    position:absolute;
+    top:6px;
+    right:6px;
+    display:flex;
+    gap:2px;
+    opacity:.35;
+    transition:opacity .15s;
+  }
+  .pane:hover .tools,.pane:focus-within .tools{opacity:1;}
+  @media (hover:none){ .tools{opacity:1;} }
+  .tools button{
+    display:grid;
+    place-items:center;
+    width:28px;
+    height:28px;
+    padding:0;
+    border:0;
+    border-radius:6px;
+    background:transparent;
+    color:var(--punct);
+    cursor:pointer;
+  }
+  .tools button:hover{background:var(--cur); color:var(--ink);}
+  .tools button:focus-visible{outline:2px solid var(--key); outline-offset:-2px;}
+  .tools svg{width:16px; height:16px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round;}
   .pane textarea::selection{background:color-mix(in srgb,var(--key) 30%,transparent);}
   .p{color:var(--punct);}
   .o{color:var(--op);}
@@ -225,9 +252,18 @@ dataEl.value = JSON.stringify(seedData, null, 2);
 // Editor keys: Tab indents, Enter keeps the indent (one level deeper after { or [),
 // Esc leaves the field so Tab can move focus again. insertText keeps native undo.
 const insert = text => document.execCommand("insertText", false, text);
+function format(ta){
+  let out;
+  try{ out = JSON.stringify(JSON.parse(ta.value), null, 2); }catch{ return; } // invalid JSON is already flagged
+  if(out === ta.value) return;
+  ta.focus();
+  ta.select();
+  insert(out);
+}
 function onKey(e){
   const ta = e.target;
   if(e.key === "Escape") return ta.blur();
+  if(e.code === "KeyF" && e.shiftKey && e.altKey){ e.preventDefault(); return format(ta); }
   if(e.key === "Tab" && !e.shiftKey && !e.altKey && !e.ctrlKey && !e.metaKey){
     e.preventDefault();
     insert("  ");
@@ -244,6 +280,41 @@ for(const ta of [ruleEl, dataEl]){
   ta.addEventListener("keydown", onKey);
   for(const ev of ["input", "keyup", "click", "focus"]) ta.addEventListener(ev, () => markLine(ta));
 }
+// Pane tools: format (editors only) and copy (every pane), as icon buttons.
+const svg = d => `<svg viewBox="0 0 24 24" aria-hidden="true">${d}</svg>`;
+const ICON = {
+  format: svg('<path d="M8 3H7a2 2 0 0 0-2 2v5a2 2 0 0 1-2 2 2 2 0 0 1 2 2v5a2 2 0 0 0 2 2h1M16 21h1a2 2 0 0 0 2-2v-5a2 2 0 0 1 2-2 2 2 0 0 1-2-2V5a2 2 0 0 0-2-2h-1"/>'),
+  copy: svg('<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>'),
+  ok: svg('<path d="M20 6 9 17l-5-5"/>'),
+  fail: svg('<path d="M18 6 6 18M6 6l12 12"/>'),
+};
+async function copyText(text){
+  try{ await navigator.clipboard.writeText(text); return true; }
+  catch{ // clipboard API can be blocked in sandboxed frames; fall back to execCommand
+    const tmp = Object.assign(document.createElement("textarea"), {value: text});
+    document.body.append(tmp);
+    tmp.select();
+    const ok = document.execCommand("copy");
+    tmp.remove();
+    return ok;
+  }
+}
+for(const pane of panes){
+  const ta = pane.querySelector("textarea");
+  const tools = document.createElement("div");
+  tools.className = "tools";
+  tools.innerHTML = (ta ? `<button type="button" data-act="format" aria-label="Format" title="Format (Shift+Alt+F)">${ICON.format}</button>` : "")
+    + `<button type="button" data-act="copy" aria-label="Copy" title="Copy">${ICON.copy}</button>`;
+  tools.addEventListener("click", async e => {
+    const btn = e.target.closest("button");
+    if(!btn) return;
+    if(btn.dataset.act === "format") return format(ta);
+    btn.innerHTML = (await copyText(ta ? ta.value : resultEl.textContent)) ? ICON.ok : ICON.fail;
+    setTimeout(() => { btn.innerHTML = ICON.copy; }, 1200);
+  });
+  pane.append(tools);
+}
+
 addEventListener("resize", () => panes.forEach(fit));
 document.fonts.ready.then(() => panes.forEach(fit));
 render();
