@@ -1,3 +1,7 @@
+---
+description: "How to validate a JsonLogic rule: JSON syntax, known operators, argument shapes and data checks, with a JsonLogic tester."
+---
+
 # How to Validate a JsonLogic Rule
 
 A JsonLogic rule that *looks* right can still fail silently: a misspelled operator, a wrong argument shape, or data that does not match the rule's expectations. Validating a JsonLogic rule means checking three things: that it is valid JSON, that every operator exists and receives the right arguments, and that it returns the expected result for real data.

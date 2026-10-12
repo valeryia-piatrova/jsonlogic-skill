@@ -1,0 +1,17 @@
+title: JsonLogic Skill
+tagline: AI JsonLogic Rule Generator and Validator
+description: Generate, validate, run and debug JsonLogic rules with your AI coding assistant. Guides, examples and a JsonLogic playground for Python, Java, Ruby, JavaScript and more.
+url: https://valeryia-piatrova.github.io
+baseurl: /jsonlogic-skill
+theme: jekyll-theme-cayman
+plugins:
+  - jekyll-seo-tag
+  - jekyll-sitemap
+exclude:
+  - SKILL.md
+  - CHANGELOG.md
+  - CONTRIBUTING.md
+  - references
+  - scripts
+  - .claude-plugin
+  - assets/playground.html
