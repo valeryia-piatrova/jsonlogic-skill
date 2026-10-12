@@ -187,14 +187,20 @@ function highlight(src, keyClass){
 
 // No scrolling: shrink each pane's font until its whole text fits.
 // ponytail: linear 0.5px steps, binary search if panes ever get huge.
-function fit(pane){
+function fit(pane, size = 15){
   const pre = pane.querySelector("pre:not(.gutter)");
-  let size = 15;
   pane.style.fontSize = size + "px";
   while(size > 4 && (pre.scrollHeight > pre.clientHeight || pre.scrollWidth > pre.clientWidth)){
     size -= 0.5;
     pane.style.fontSize = size + "px";
   }
+  return size;
+}
+function fitAll(){
+  const editors = [...panes].filter(p => p.querySelector("textarea"));
+  const size = Math.min(...editors.map(p => fit(p)));
+  editors.forEach(p => p.style.fontSize = size + "px");
+  fit(resultEl.parentElement, 13);
 }
 
 // Error line from JSON.parse's message: Chrome/Firefox give "line N", older engines
@@ -210,7 +216,6 @@ function gutter(ta, bad){
   const n = ta.value.split("\n").length;
   const pane = ta.parentElement;
   pane.querySelector(".gutter").innerHTML = Array.from({length:n}, (_, i) => i === bad ? `<span class="err">${i + 1}</span>` : i + 1).join("\n");
-  pane.style.setProperty("--g", String(n).length);
   pane.style.setProperty("--el", bad);
   pane.classList.toggle("has-err", bad >= 0);
 }
@@ -222,6 +227,8 @@ function render(){
   const rule = parse(ruleEl), data = parse(dataEl);
   gutter(ruleEl, rule.error ? errLine(ruleEl.value, rule.error.message) : -1);
   gutter(dataEl, data.error ? errLine(dataEl.value, data.error.message) : -1);
+  const g = String(Math.max(ruleEl.value.split("\n").length, dataEl.value.split("\n").length)).length;
+  for(const ta of [ruleEl, dataEl]) ta.parentElement.style.setProperty("--g", g);
   // In the rule every key is an operator; in the data it's a field name.
   ruleEl.previousElementSibling.innerHTML = highlight(ruleEl.value, "o");
   dataEl.previousElementSibling.innerHTML = highlight(dataEl.value, "k");
@@ -236,7 +243,7 @@ function render(){
     resultEl.textContent = e.message ?? JSON.stringify(e);
     resultEl.className = "err";
   }
-  panes.forEach(fit);
+  fitAll();
 }
 
 // __INITIAL_RULE__ / __INITIAL_DATA__ are replaced with JSON literals before publishing.
@@ -328,7 +335,7 @@ themeTool.innerHTML = `<button type="button" aria-label="Toggle dark theme" titl
 themeTool.onclick = toggleTheme;
 resultEl.parentElement.append(themeTool);
 
-addEventListener("resize", () => panes.forEach(fit));
-document.fonts.ready.then(() => panes.forEach(fit));
+addEventListener("resize", fitAll);
+document.fonts.ready.then(fitAll);
 render();
 </script>
