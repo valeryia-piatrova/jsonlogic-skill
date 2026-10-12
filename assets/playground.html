@@ -287,7 +287,15 @@ const ICON = {
   copy: svg('<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>'),
   ok: svg('<path d="M20 6 9 17l-5-5"/>'),
   fail: svg('<path d="M18 6 6 18M6 6l12 12"/>'),
+  theme: svg('<circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 0 0 18z" fill="currentColor"/>'),
 };
+const root = document.documentElement;
+try{ const t = localStorage.getItem("theme"); if(t) root.dataset.theme = t; }catch{}
+function toggleTheme(){
+  const dark = root.dataset.theme ? root.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+  root.dataset.theme = dark ? "light" : "dark";
+  try{ localStorage.setItem("theme", root.dataset.theme); }catch{}
+}
 async function copyText(text){
   try{ await navigator.clipboard.writeText(text); return true; }
   catch{ // clipboard API can be blocked in sandboxed frames; fall back to execCommand
@@ -314,6 +322,11 @@ for(const pane of panes){
   });
   pane.append(tools);
 }
+
+const themeTool = Object.assign(document.createElement("div"), {className: "tools", style: "top:auto; bottom:6px; opacity:1"});
+themeTool.innerHTML = `<button type="button" aria-label="Toggle dark theme" title="Toggle dark theme">${ICON.theme}</button>`;
+themeTool.onclick = toggleTheme;
+resultEl.parentElement.append(themeTool);
 
 addEventListener("resize", () => panes.forEach(fit));
 document.fonts.ready.then(() => panes.forEach(fit));
