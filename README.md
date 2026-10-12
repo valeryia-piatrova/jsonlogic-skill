@@ -113,10 +113,20 @@ No. The skill is a folder of Markdown plus small scripts. Clone it into your cli
 
 Yes. MIT license, free for personal and commercial use.
 
+## Tools & Guides
+
+- [JsonLogic Playground & Editor](https://valeryia-piatrova.github.io/jsonlogic-skill/playground.html): test a rule against data online
+- [JsonLogic tutorial](docs/jsonlogic-tutorial.md): write your first rule in 5 minutes
+- [JsonLogic examples](docs/jsonlogic-examples.md): if/else, in, contains, array length, dates, null checks
+- [JsonLogic validator](docs/jsonlogic-validator.md): how to validate and test a rule
+- [JsonLogic in Python](docs/jsonlogic-python.md) · [Java](docs/jsonlogic-java.md) · [Ruby and Rails](docs/jsonlogic-ruby-rails.md)
+- [JsonLogic libraries and engines by language](docs/jsonlogic-libraries.md)
+- [JsonLogic alternatives](docs/jsonlogic-alternatives.md): JsonLogic vs json-rules-engine, CEL, GoRules ZEN
+
 ## Learn More
 
 - [jsonlogic.com](https://jsonlogic.com): the standard this skill implements
-- [`SKILL.md`](SKILL.md): full workflow and reasoning
+- [`SKILL.md`](https://github.com/valeryia-piatrova/jsonlogic-skill/blob/main/SKILL.md): full workflow and reasoning
 
 ## License
 
