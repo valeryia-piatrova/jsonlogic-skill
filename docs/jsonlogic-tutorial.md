@@ -1,3 +1,7 @@
+---
+description: "JsonLogic tutorial: learn the syntax, operators and var, and write your first JsonLogic rule in 5 minutes."
+---
+
 # JsonLogic Tutorial: Write Your First Rule in 5 Minutes
 
 JsonLogic is a way to write business rules as JSON. Instead of code like `if (age >= 18)`, you write a JSON object that any JsonLogic library (JavaScript, Python, Ruby, PHP, Java and more) can evaluate. Rules become data: storable in a database, sendable over an API, editable without deploying code.

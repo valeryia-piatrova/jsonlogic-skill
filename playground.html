@@ -1,0 +1,9 @@
+---
+layout: null
+---
+<!doctype html>
+<meta charset="utf-8">
+<title>JsonLogic Playground &amp; Editor Online</title>
+<meta name="description" content="Free online JsonLogic playground and editor. Paste a JsonLogic rule and data, test and validate it, and see the result live in your browser.">
+<link rel="canonical" href="{{ site.url }}{{ site.baseurl }}/playground.html">
+{% capture page_body %}{% include_relative assets/playground.html %}{% endcapture %}{{ page_body | remove_first: "<title>JSON Logic Playground</title>" }}
