@@ -1,6 +1,8 @@
 # JsonLogic Skill
 
-Helps with [JsonLogic](https://jsonlogic.com).
+An **agent skill** that teaches AI coding assistants to work with [JsonLogic](https://jsonlogic.com) business rules: turn a plain-language requirement into a valid JsonLogic rule, run it, validate it, explain it, or debug it.
+
+Works with **Claude Code, Cursor, GitHub Copilot, VS Code, Codex, and Gemini CLI**. Install it once and your AI assistant picks it up automatically whenever JsonLogic comes up, in any project.
 
 [![Agent Skill](https://img.shields.io/badge/Agent%20Skill-jsonlogic-6366F1)](https://agentskills.io)
 
@@ -16,7 +18,7 @@ git clone https://github.com/valeryia-piatrova/jsonlogic-skill.git ~/.claude/ski
 
 Restart Claude Code to pick it up.
 
-**Every install path differs by client** — each badge below jumps to that client's
+**Every install path differs by client:** each badge below jumps to that client's
 exact command in [docs/installing.md](docs/installing.md):
 
 [![Cursor](https://img.shields.io/badge/Cursor-Install-lightgrey)](docs/installing.md#cursor)
@@ -27,79 +29,105 @@ exact command in [docs/installing.md](docs/installing.md):
 
 ## What It Does
 
-Claude uses this skill automatically when JsonLogic comes up.
+Your AI assistant uses this JsonLogic skill automatically when JsonLogic comes up.
 
-- Turn a plain logic description into a JsonLogic rule
-- Run JsonLogic rule
-- Validate if a JsonLogic rule is valid
-- Debug a JsonLogic rule that isn't working
+- Turn a plain-language business requirement into a valid JsonLogic rule
+- Run a JsonLogic rule against your data
+- Validate whether a JsonLogic rule is well-formed
+- Explain what an existing JsonLogic rule does
+- Debug a JsonLogic rule that returns the wrong result
 
 ## Usage
 
 **No data shape given:**
 
-> Give a 20% discount on orders over $200, or 10% over $100 — otherwise no discount
+> Give a 20% discount on orders over $200, or 10% over $100, otherwise no discount
 
-> Approve a claim only if the policy is active and the incident happened after the policy start date — but route it to manual review instead if the policyholder already has 2+ claims this year, or if the amount is over the coverage limit
+> Approve a claim only if the policy is active and the incident happened after the policy start date, but route it to manual review instead if the policyholder already has 2+ claims this year, or if the amount is over the coverage limit
 
-> Let a user edit a document if they’re the owner or an admin, but only while the document isn’t locked for review
+> Let a user edit a document if they are the owner or an admin, but only while the document is not locked for review
 
-> Flag a transaction as suspicious if it’s over $5,000 and happens outside business hours — unless the account has 90+ days of history and no prior flags, in which case just log it instead of blocking
+> Flag a transaction as suspicious if it is over $5,000 and happens outside business hours, unless the account has 90+ days of history and no prior flags, in which case just log it instead of blocking
 
-**Data shape given — field names come from it, not a guess:**
+**Data shape given (field names come from it, not a guess):**
 
-> Approve a claim, but route it to manual review instead of auto-approving if the policyholder already has 2+ claims this year or the amount is over the limit. My claim data:
->
-> ```json
-> {
-> 	"policy_active": true,
-> 	"incident_date": "2026-01-01",
-> 	"policy_start_date": "2025-01-01",
-> 	"claims_this_year": 1,
-> 	"claim_amount": 4200,
-> 	"coverage_limit": 5000
-> }
-> ```
+> Approve a claim, but route it to manual review instead of auto-approving if the policyholder already has 2+ claims this year or the amount is over the limit.
 
 > Explain what this JsonLogic rule does:
->
-> ```json
-> {
-> 	"some": [
-> 		{ "var": "items" },
-> 		{ ">": [{ "var": "price" }, 500] }
-> 	]
-> }
-> ```
+
+```json
+{
+	"some": [
+		{ "var": "items" },
+		{ ">": [{ "var": "price" }, 500] }
+	]
+}
+```
 
 > Run this JsonLogic rule in Ruby:
->
-> ```json
-> {
-> 	">=": [{ "var": "age" }, 18]
-> }
-> ```
 
-> Why does this rule return `false` when I expect  `true`?
->
-> ```json
-> {
-> 	"rule": { "and": [
-> 		{ ">": [{ "var": "total" }, 100] },
-> 		{ "==": [{ "var": "vip" }, true] }
-> 	]},
-> 	"data": { "total": 150, "vip": "true" }
-> }
-> ```
+```json
+{
+	">=": [{ "var": "age" }, 18]
+}
+```
 
-Uses operators from the real standard. Checks whether standard and
-library actually supports needed logic and says so plainly if it doesn't.
+> Why does this rule return `false` when I expect `true`?
+
+```json
+{
+	"rule": { "and": [
+		{ ">": [{ "var": "total" }, 100] },
+		{ "==": [{ "var": "vip" }, true] }
+	]},
+	"data": { "total": 150, "vip": "true" }
+}
+```
+
+Uses operators from the real JsonLogic standard. Checks whether the standard and
+your language's library actually support the logic you need, and says so plainly if they don't.
+
+## FAQ
+
+**What is the JsonLogic skill?**
+
+An open-source agent skill (MIT licensed) that gives AI coding assistants reliable JsonLogic abilities: writing, running, validating, explaining, and debugging JsonLogic business rules.
+
+**Which AI assistants does it work with?**
+
+Claude Code, Cursor, GitHub Copilot, VS Code (agent mode), Codex, and Gemini CLI, plus any other client that supports the open Agent Skills format from agentskills.io.
+
+**What is JsonLogic?**
+
+[JsonLogic](https://jsonlogic.com) is a JSON-based format for portable business rules and conditional logic. One rule runs across JavaScript, Python, Ruby, PHP, Java, and more.
+
+**How is this different from asking ChatGPT or Claude to write JsonLogic directly?**
+
+The skill encodes the real JsonLogic standard, per-language operator support, and a validate-before-you-answer workflow, so you get rules that actually run instead of plausible-looking guesses.
+
+**Do I need to install anything else?**
+
+No. The skill is a folder of Markdown plus small scripts. Clone it into your client's skills directory and restart the client.
+
+**Is it free?**
+
+Yes. MIT license, free for personal and commercial use.
+
+## Tools & Guides
+
+- [JsonLogic Playground & Editor](https://valeryia-piatrova.github.io/jsonlogic-skill/playground.html): test a rule against data online
+- [JsonLogic tutorial](docs/jsonlogic-tutorial.md): write your first rule in 5 minutes
+- [JsonLogic examples](docs/jsonlogic-examples.md): if/else, in, contains, array length, dates, null checks
+- [JsonLogic validator](docs/jsonlogic-validator.md): how to validate and test a rule
+- [JsonLogic in Python](docs/jsonlogic-python.md) · [Java](docs/jsonlogic-java.md) · [Ruby and Rails](docs/jsonlogic-ruby-rails.md)
+- [JsonLogic libraries and engines by language](docs/jsonlogic-libraries.md)
+- [JsonLogic alternatives](docs/jsonlogic-alternatives.md): JsonLogic vs json-rules-engine, CEL, GoRules ZEN
 
 ## Learn More
 
-- [jsonlogic.com](https://jsonlogic.com) — the standard this skill implements
-- [`SKILL.md`](SKILL.md) — full workflow and reasoning
+- [jsonlogic.com](https://jsonlogic.com): the standard this skill implements
+- [`SKILL.md`](https://github.com/valeryia-piatrova/jsonlogic-skill/blob/main/SKILL.md): full workflow and reasoning
 
 ## License
 
-MIT — see [`LICENSE`](LICENSE).
+MIT, see [`LICENSE`](LICENSE).
